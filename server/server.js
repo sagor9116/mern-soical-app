@@ -1,14 +1,23 @@
+// configure dotenv file
+require("dotenv").config()
+
 const express = require("express")
 const path = require("path")
 const cors = require("cors")
+const mongoose = require("mongoose")
 const cookieParser = require("cookie-parser")
 const errorHandler = require("./middleware/errorHandler")
-const { logMiddleware } = require("./middleware/logger")
+const { logMiddleware, logEvents } = require("./middleware/logger")
 const corsOptions = require("./config/corsOptions")
+const connectDB = require("./config/mongoDbConnection")
 
 const app = express()
 app.use(express.json())
 app.use(cors(corsOptions))
+
+// mondoDB
+mongoose.set("strictQuery", false)
+connectDB()
 
 // log the files and err
 app.use(logMiddleware)
@@ -40,7 +49,17 @@ app.use(cookieParser())
 //port
 const PORT = process.env.PORT || 3600
 
-// starting the development server
-app.listen(PORT, () => {
-  console.log(`server is running on port: ${PORT}`)
-})
+// mongoDB connection
+mongoose.connection
+  .once("open", () => {
+    console.log("Connected to MongoDB")
+    // starting the development server
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+  })
+  .on("error", (error) => {
+    console.log(error)
+    logEvents(
+      `${err.no}: ${err.code}\t${err.syscall}\t${err.hostname}`,
+      "mongoErrLog.log"
+    )
+  })
