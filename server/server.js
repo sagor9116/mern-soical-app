@@ -1,28 +1,40 @@
 // configure dotenv file
 require("dotenv").config()
 
+// third party imports
 const express = require("express")
 const path = require("path")
 const cors = require("cors")
 const mongoose = require("mongoose")
 const cookieParser = require("cookie-parser")
+const bodyParser = require("body-parser")
+const helmet = require("helmet")
+const morgan = require("morgan")
+const multer = require("multer")
+
+// custom imports
 const errorHandler = require("./middleware/errorHandler")
 const { logMiddleware, logEvents } = require("./middleware/logger")
 const corsOptions = require("./config/corsOptions")
 const connectDB = require("./config/mongoDbConnection")
 
+// initializing app and using it
 const app = express()
 app.use(express.json())
 app.use(cors(corsOptions))
 
-// mondoDB
-mongoose.set("strictQuery", false)
-connectDB()
+app.use(bodyParser.json({ limit: "30mb", extended: true }))
+app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }))
+
+app.use(helmet())
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }))
+
+app.use(morgan("common"))
 
 // log the files and err
 app.use(logMiddleware)
 
-// look for the static files
+// handling static files
 app.use("/", express.static(path.join(__dirname, "public")))
 
 // set up the splash folder for api
@@ -40,6 +52,18 @@ app.all("*", (req, res) => {
   }
 })
 
+// File storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "/public/assets/")
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname)
+  },
+})
+
+const upload = multer({ storage: storage })
+
 // custom error handler
 app.use(errorHandler)
 
@@ -48,6 +72,10 @@ app.use(cookieParser())
 
 //port
 const PORT = process.env.PORT || 3600
+
+// mondoDB
+mongoose.set("strictQuery", false)
+connectDB()
 
 // mongoDB connection
 mongoose.connection
